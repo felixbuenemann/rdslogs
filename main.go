@@ -79,8 +79,11 @@ func main() {
 		} else {
 			filterTime, err = time.Parse("2006-01-02 15:04:05", *since)
 			if err != nil {
-				fmt.Printf("Invalid format. Use timestamp (2006-01-02 15:04:05) or duration (1h, 5m)\n")
-				os.Exit(1)
+				filterTime, err = time.Parse(time.RFC3339, *since)
+				if err != nil {
+					fmt.Printf("Invalid format. Use RFC3339 (2006-01-02T15:04:05Z), timestamp (2006-01-02 15:04:05) or duration (1h, 5m)\n")
+					os.Exit(1)
+				}
 			}
 			filterTime = filterTime.UTC()
 		}
@@ -111,7 +114,7 @@ func main() {
 
 			downloadInput := &rds.DownloadDBLogFilePortionInput{
 				DBInstanceIdentifier: instance,
-				LogFileName:         file.LogFileName,
+				LogFileName:          file.LogFileName,
 			}
 
 			var marker string
