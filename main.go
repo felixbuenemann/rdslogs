@@ -71,7 +71,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	seen := make(map[string]bool)
+	lastMarkers := make(map[string]string)
 	var filterTime time.Time
 	if *since != "" {
 		if d, err := time.ParseDuration(*since); err == nil {
@@ -108,16 +108,16 @@ func main() {
 		})
 
 		for _, file := range output.DescribeDBLogFiles {
-			if seen[*file.LogFileName] {
-				continue
-			}
-
 			downloadInput := &rds.DownloadDBLogFilePortionInput{
 				DBInstanceIdentifier: instance,
 				LogFileName:          file.LogFileName,
 			}
 
-			var marker string
+			if marker := lastMarkers[*file.LogFileName]; marker != "" {
+				downloadInput.Marker = &marker
+			}
+
+			var lastMarker string
 			for {
 				portion, err := client.DownloadDBLogFilePortion(ctx, downloadInput)
 				if err != nil {
@@ -142,15 +142,19 @@ func main() {
 					}
 				}
 
+				if portion.Marker != nil {
+					lastMarker = *portion.Marker
+					downloadInput.Marker = &lastMarker
+				}
+
 				if !*portion.AdditionalDataPending {
 					break
 				}
-
-				marker = *portion.Marker
-				downloadInput.Marker = &marker
 			}
 
-			seen[*file.LogFileName] = true
+			if lastMarker != "" {
+				lastMarkers[*file.LogFileName] = lastMarker
+			}
 		}
 
 		if !*follow {
